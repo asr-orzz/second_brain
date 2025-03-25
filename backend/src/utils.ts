@@ -1,5 +1,5 @@
 export function random(len: number) {
-    let options = "qwertyuioasdfghjklzxcvbnm12345678";
+    let options = process.env.RANDOM_FUNCTION_KEY!;
     let length = options.length;
 
     let ans = "";
