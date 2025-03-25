@@ -18,3 +18,9 @@ const contentSchema=new Schema({
 
 export const contentModel= model("contents",contentSchema);
 
+const linkSchema= new Schema({
+    hash: {type : String , require: true},
+    userId: {type : ObjectId, ref: "users",require: true}
+})
+
+export const linkModel= model("links",linkSchema);

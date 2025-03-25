@@ -2,9 +2,10 @@ import {Router} from "express"
 export const userRouter=Router();
 import jwt from "jsonwebtoken";
 import {z} from "zod";
-import { contentModel, userModel } from "../db";
+import { contentModel, linkModel, userModel } from "../db";
 import bcrypt from "bcrypt"
 import { userMiddleware } from "../middlewares/userMiddleware";
+import { random } from "../utils";
 
 const bodySchema=z.object({
     username: z.string(),
@@ -85,7 +86,7 @@ userRouter.post('/signin',async (req,res)=>{
 
 
 
-userRouter.post("/content",userMiddleware,async (req,res,next)=>{
+userRouter.post("/content",userMiddleware,async (req,res)=>{
     const reqContentSchema=z.object({
         type : z.string(),
         link : z.string(),
@@ -106,11 +107,11 @@ userRouter.post("/content",userMiddleware,async (req,res,next)=>{
     }
 })
 
-userRouter.get("/content",userMiddleware,async (req,res,next)=>{
+userRouter.get("/content",userMiddleware,async (req,res)=>{
     const userId=req.body.userId;
     const Contents= await contentModel.find({
         userId: userId
-    })
+    }).populate("userId","username")
 
     res.json({
         Contents
@@ -118,7 +119,7 @@ userRouter.get("/content",userMiddleware,async (req,res,next)=>{
 })
 
 
-userRouter.put("/content",userMiddleware,async (req,res,next)=>{
+userRouter.put("/content",userMiddleware,async (req,res)=>{
     const contentId=req.body.contentId;
 
     await contentModel.deleteOne({
@@ -127,4 +128,64 @@ userRouter.put("/content",userMiddleware,async (req,res,next)=>{
     res.json({
         msg:"Content Deleted"
     })
+})
+
+
+userRouter.post("/brain/share",userMiddleware,async (req,res)=>{
+    const share=req.body.share;
+
+    if(share){
+        const exisitingLink= await linkModel.findOne({
+            userId: req.body.userId
+        })
+        if(exisitingLink){
+            res.json({
+                hash: exisitingLink.hash
+            })
+            return 
+        }
+        const hash=random(15);
+        await linkModel.create({
+            hash: hash,
+            userId: req.body.userId
+        })
+        res.json({
+            hash: hash
+        })
+    } 
+    else{
+        await linkModel.deleteOne({
+            userId: req.body.userId
+        })
+        res.json({
+            msg: "Sharing Brain Disabled"
+        })
+    }  
+})
+
+userRouter.get("/brain/:shareLink",async (req,res)=>{
+    const shareLink=req.params.shareLink;
+    const link= await linkModel.findOne({
+        hash: shareLink
+    })
+
+    if(link){
+        const content= await contentModel.find({
+            userId: link.userId
+        })
+        const user=await userModel.findOne({
+            _id: link.userId
+        })
+        if(user){
+            res.json({
+                username: user.username,
+                content: content
+            })
+        }
+    }
+    else{
+        res.json({
+            msg:"Invalid Link"
+        })
+    }
 })
